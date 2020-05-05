@@ -1,56 +1,20 @@
 ---
-# Bad ansible! This playbook is an example of poor/bad practices!
-# Bad practices may include:
-#
-#   Poor formatting and structure
-#   Poor use of YAML - but good enough to parse
-#   Inconsistent style
-#   Incorrect use of modules
-#   Poor module choice
-#   Unclear names
-#   Hard coding / poor use of variables
-#   Roles - what are roles?
-#   Bare variables
-#   No use of handlers
-
-##- name: configuration
-#  hosts: all
-#  gather_facts: false # remove later! speeds up testing
-#  become: true
-#
-#  tasks:
-#  - name: enable repos
-#    template:
-#      src: ./open_three-tier-app.repo
-#      dest: /etc/yum.repos.d/open_three-tier-app.repo
-#      mode: 0644
+- name: Common Configuration
+  hosts: all
+  gather_facts: false
+  become: true
+  roles:
+  - three_tier_common
 
 - name: deploy haproxy
-  hosts: frontends
-  gather_facts: false # remove later! speeds up testing
+  hosts: frontends,apps
+  gather_facts: true
   become: true
-
   tasks:
-  - name: http
-    package:
-      name: httpie
-      state: latest
-  - name: install HAProxy
-    yum:
-      name=haproxy state=latest
-  - name: enable HAProxy
-    service:
-      name: haproxy
-      state: started
-  - name: configure haproxy
-    template:
-      src: ./haproxy.cfg.j2
-      dest: /etc/haproxy/haproxy.cfg
-  - name: restart HAproxy
-    service:
-      name: haproxy
-      state: restarted
-
+  - include_role:
+      name: three_tier_frontend
+    when: >-
+      'frontends' in group_names
 
 - name: deploy tomcat
   hosts: apps
@@ -109,6 +73,7 @@
     file:
       path: /usr/share/tomcat/webapps/ansible
       state: directory
+
   - name: copy static index.html to tomcat webapps/ansible/index.html
     template:
       src: index.html.app2
@@ -127,7 +92,7 @@
   #  yum:
   #    name: postgresql-server
   #    state: latest
-  - name: enable psql at boot
+  - name: enable postgresql at boot
     service:
       name: postgresql
       enabled: yes
@@ -143,6 +108,9 @@
       r_postgres_init.rc != 0 and
       r_postgres_init.stdout != 'Data directory is not empty!'
 
+
+#  - name: initilize postgres some more
+#    command: chkconfig postgresql on
   - name: start postgres
     service:
       name: postgresql.service
@@ -162,7 +130,7 @@
     service:
       name: httpd
       enabled: yes
-  - name: start apache
-    service:
-      name: httpd
-      state: started
+#  - name: start apache
+#    service:
+#      name: httpd
+#      state: started
